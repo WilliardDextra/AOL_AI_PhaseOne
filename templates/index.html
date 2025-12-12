@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Food Donation Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f3f4f6;
+      }
+      .card {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+    </style>
+  </head>
+  <body class="p-4 sm:p-8 flex items-start justify-center min-h-screen">
+    <div class="card bg-white p-6 sm:p-10 rounded-xl w-full max-w-2xl">
+      <h1
+        class="text-3xl sm:text-4xl font-extrabold text-blue-700 mb-2 flex items-center justify-center text-center"
+      >
+        <span class="mr-3 text-4xl">♻️</span> FOODLINK
+      </h1>
+      <p class="text-center text-gray-500 mb-8">
+        Reduce Food Waste and Analyze Food Before Making a Donation
+      </p>
+
+      <form
+        action="/analyze"
+        method="post"
+        enctype="multipart/form-data"
+        class="space-y-6 bg-gray-50 p-6 rounded-lg border"
+      >
+        <h2 class="text-xl font-bold text-gray-700 mb-4">Food Data</h2>
+
+        <div>
+          <label for="foodName" class="block text-sm font-medium text-gray-700"
+            >Food Type/Name (Exp: Pepperoni Pizza, Fried Rice, ect)</label
+          >
+          <input
+            type="text"
+            name="foodName"
+            id="foodName"
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          />
+        </div>
+
+        <div>
+          <label
+            for="foodWeight"
+            class="block text-sm font-medium text-gray-700"
+            >Estimated Weight/Portion (500 Grams, 1 Portion, ect)</label
+          >
+          <input
+            type="text"
+            name="foodWeight"
+            id="foodWeight"
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          />
+        </div>
+
+        <div
+          class="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4"
+        >
+          <div class="flex items-center space-x-3 w-full sm:w-auto">
+            <input
+              type="file"
+              name="file"
+              id="fileInput"
+              class="hidden"
+              accept="image/*"
+              required
+            />
+            <label
+              for="fileInput"
+              class="cursor-pointer bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition duration-150 shadow-md"
+            >
+              <span class="text-lg"></span> Upload Photo
+            </label>
+            <span id="fileName" class="text-gray-500 truncate max-w-xs"
+              >No Photo Attached</span
+            >
+          </div>
+
+          <button
+            type="submit"
+            class="w-full sm:w-auto bg-green-500 text-white py-2 px-6 rounded-lg font-bold hover:bg-green-600 transition duration-150 shadow-lg"
+          >
+            Analize & Tracking
+          </button>
+        </div>
+      </form>
+
+      <hr class="my-10 border-gray-200" />
+
+      {% if result %} {% if result.error %}
+      <div
+        class="bg-red-50 border border-red-300 text-red-600 p-6 rounded-xl mt-6"
+      >
+        <h2 class="text-2xl font-bold mb-2">❌ Failed To Analyze</h2>
+        <p class="text-sm break-words">{{ result.error }}</p>
+      </div>
+      {% else %}
+      <h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">
+        <span class="text-green-500"></span> Analize Results
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Kolom 1: Informasi Dasar -->
+        <div class="md:col-span-1 flex flex-col items-center">
+          <img
+            src="{{ image_url }}"
+            alt="{{ result.foodNameIdentified }}"
+            class="rounded-lg shadow-xl mb-4 w-full h-auto object-cover max-h-56"
+          />
+          <div class="bg-gray-100 p-3 rounded-lg w-full text-center">
+            <p class="text-lg font-bold text-gray-800">
+              {{ result.foodNameIdentified | default('Makanan Terdeteksi') }}
+            </p>
+            <p class="text-sm text-gray-500 italic">
+              ({{ result.servingDetails | default('Jumlah: -') }})
+            </p>
+          </div>
+        </div>
+
+        <!-- Kolom 2 & 3: Analisis -->
+        <div class="md:col-span-2 space-y-6">
+          <!-- Analisis 1: Estimasi Kadaluarsa (SDG Focus) -->
+          <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-300">
+            <h3
+              class="text-xl font-bold text-yellow-800 mb-2 flex items-center"
+            >
+              <span class="mr-2"></span> Estimated Expiration & Storage
+            </h3>
+            <p>
+              <strong>Estimated Expiration:</strong> {{
+              result.expirationAnalysis.estimatedShelfLife | default('Tidak
+              Diketahui') }}
+            </p>
+            <p class="text-sm mt-1">
+              <strong>Storage Recomendation:</strong> {{
+              result.expirationAnalysis.storageRecommendation | default('Tidak
+              Ada') }}
+            </p>
+          </div>
+
+          <!-- Analisis 2: Nilai Gizi -->
+          <div class="bg-green-50 p-4 rounded-lg border border-green-300">
+            <h3 class="text-xl font-bold text-green-800 mb-2 flex items-center">
+              <span class="mr-2"></span> Nutrional Value
+            </h3>
+            <div class="space-y-1 text-sm">
+              {% for fact, value in result.nutritionFacts.items() %}
+              <div class="flex justify-between border-b border-green-200 pb-1">
+                <span class="font-medium text-gray-700">{{ fact }}</span>
+                <span class="font-semibold text-gray-900">{{ value }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Analisis 3: Potensi Alergen -->
+          <div class="bg-red-50 p-4 rounded-lg border border-red-300">
+            <h3 class="text-xl font-bold text-red-800 mb-2 flex items-center">
+              <span class="mr-2"></span> Alergy Potential
+            </h3>
+            <ul class="list-disc list-inside text-sm text-red-700 font-medium">
+              {% if result.potentialAllergens and result.potentialAllergens |
+              length > 0 %} {% for allergen in result.potentialAllergens %}
+              <li>{{ allergen }}</li>
+              {% endfor %} {% else %}
+              <li>Tidak ada alergen mayor yang teridentifikasi.</li>
+              {% endif %}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {% endif %} {% endif %}
+    </div>
+
+    <script>
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", function (e) {
+          const fileNameSpan = document.getElementById("fileName");
+          if (e.target.files.length > 0) {
+            fileNameSpan.textContent = e.target.files[0].name;
+            // Mengubah path untuk ditampilkan di img tag secara temporer
+            const imageUrl = URL.createObjectURL(e.target.files[0]);
+            const imgElement = document.querySelector(".card img");
+            if (imgElement) {
+              imgElement.src = imageUrl;
+            }
+          } else {
+            fileNameSpan.textContent = "Tidak ada file dipilih";
+          }
+        });
+    </script>
+  </body>
+</html>

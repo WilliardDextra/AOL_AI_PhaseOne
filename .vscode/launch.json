@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build SDL3 Program",
+      "type": "shell",
+      "command": "gcc",
+      "args": [
+        "${file}",
+        "-I",
+        "E:/Binus SOCS/AI Trial/SDL3-3.2.22/x86_64-w64-mingw32/include",
+        "-L",
+        "E:/Binus SOCS/AI Trial/SDL3-3.2.22/x86_64-w64-mingw32/lib",
+        "-lmingw32",
+        "-lSDL3",
+        "-o",
+        "program.exe"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$gcc"]
+    }
+  ]
+}

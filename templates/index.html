@@ -9,6 +9,14 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
+
+    <!-- 🌟 LEAFLET MAPS CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      crossorigin=""
+    />
+
     <style>
       body {
         font-family: "Inter", sans-serif;
@@ -18,10 +26,19 @@
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
           0 4px 6px -2px rgba(0, 0, 0, 0.05);
       }
+      /* CSS Map dengan tinggi tetap */
+      #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 0.5rem;
+        z-index: 1;
+        margin-top: 1rem;
+        background-color: #e5e7eb;
+      }
     </style>
   </head>
   <body class="p-4 sm:p-8 flex items-start justify-center min-h-screen">
-    <div class="card bg-white p-6 sm:p-10 rounded-xl w-full max-w-2xl">
+    <div class="card bg-white p-6 sm:p-10 rounded-xl w-full max-w-4xl">
       <h1
         class="text-3xl sm:text-4xl font-extrabold text-blue-700 mb-2 flex items-center justify-center text-center"
       >
@@ -31,91 +48,149 @@
         Reduce Food Waste and Analyze Food Before Making a Donation
       </p>
 
+      <!-- TAMPILKAN FORM JIKA BELUM ADA HASIL -->
+      {% if not result or result.error or result.route_error %} {% if not
+      has_api_key %}
+      <div
+        class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-left"
+        role="alert"
+      >
+        <strong class="font-bold">Configuration Error!</strong>
+        <span class="block sm:inline">
+          GEMINI_API_KEY is not set in the .env file.</span
+        >
+      </div>
+      {% endif %} {% if result and result.error %}
+      <div
+        class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-left"
+        role="alert"
+      >
+        <strong class="font-bold">❌ Failed To Analyze Food:</strong>
+        <span class="block sm:inline break-words">{{ result.error }}</span>
+      </div>
+      {% endif %}
+
       <form
         action="/analyze"
         method="post"
         enctype="multipart/form-data"
         class="space-y-6 bg-gray-50 p-6 rounded-lg border"
       >
-        <h2 class="text-xl font-bold text-gray-700 mb-4">Food Data</h2>
+        <h2 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">
+          1. Food Data & Analysis
+        </h2>
 
-        <div>
-          <label for="foodName" class="block text-sm font-medium text-gray-700"
-            >Food Type/Name (Exp: Pepperoni Pizza, Fried Rice, ect)</label
-          >
-          <input
-            type="text"
-            name="foodName"
-            id="foodName"
-            required
-            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label
+              for="foodName"
+              class="block text-sm font-medium text-gray-700"
+              >Food Type/Name</label
+            >
+            <input
+              type="text"
+              name="foodName"
+              id="foodName"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              value="{{ food_name | default('') }}"
+              placeholder="e.g., Pepperoni Pizza"
+            />
+          </div>
+          <div>
+            <label
+              for="foodWeight"
+              class="block text-sm font-medium text-gray-700"
+              >Estimated Weight/Portion</label
+            >
+            <input
+              type="text"
+              name="foodWeight"
+              id="foodWeight"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              value="{{ food_weight | default('') }}"
+              placeholder="e.g., 500 grams"
+            />
+          </div>
         </div>
 
+        <div class="flex items-center space-x-3 w-full">
+          <input
+            type="file"
+            name="file"
+            id="fileInput"
+            class="hidden"
+            accept="image/*"
+            required
+          />
+          <label
+            for="fileInput"
+            class="cursor-pointer bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition duration-150 shadow-md"
+          >
+            <span class="text-lg">📷</span> Upload Photo
+          </label>
+          <span id="fileName" class="text-gray-500 truncate max-w-xs"
+            >No Photo Attached</span
+          >
+        </div>
+
+        <h2 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2 pt-4">
+          2. Route & Location Data (OSM)
+        </h2>
         <div>
           <label
-            for="foodWeight"
+            for="originAddress"
             class="block text-sm font-medium text-gray-700"
-            >Estimated Weight/Portion (500 Grams, 1 Portion, ect)</label
+            >Origin Address (Donator)</label
           >
           <input
             type="text"
-            name="foodWeight"
-            id="foodWeight"
+            name="originAddress"
+            id="originAddress"
             required
-            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            placeholder="e.g., Monas, Jakarta"
+            value="{{ origin_address | default('') }}"
+          />
+        </div>
+        <div>
+          <label
+            for="destAddress"
+            class="block text-sm font-medium text-gray-700"
+            >Destination Address (Recipient)</label
+          >
+          <input
+            type="text"
+            name="destAddress"
+            id="destAddress"
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            placeholder="e.g., Grand Indonesia, Jakarta"
+            value="{{ dest_address | default('') }}"
           />
         </div>
 
-        <div
-          class="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4"
+        <button
+          type="submit"
+          class="w-full sm:w-auto bg-green-600 text-white py-3 px-6 rounded-lg font-bold hover:bg-green-700 transition duration-150 shadow-lg mt-6"
         >
-          <div class="flex items-center space-x-3 w-full sm:w-auto">
-            <input
-              type="file"
-              name="file"
-              id="fileInput"
-              class="hidden"
-              accept="image/*"
-              required
-            />
-            <label
-              for="fileInput"
-              class="cursor-pointer bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition duration-150 shadow-md"
-            >
-              <span class="text-lg"></span> Upload Photo
-            </label>
-            <span id="fileName" class="text-gray-500 truncate max-w-xs"
-              >No Photo Attached</span
-            >
-          </div>
-
-          <button
-            type="submit"
-            class="w-full sm:w-auto bg-green-500 text-white py-2 px-6 rounded-lg font-bold hover:bg-green-600 transition duration-150 shadow-lg"
-          >
-            Analize & Tracking
-          </button>
-        </div>
+          Analyze & Find Route
+        </button>
       </form>
+      {% endif %}
 
       <hr class="my-10 border-gray-200" />
 
-      {% if result %} {% if result.error %}
-      <div
-        class="bg-red-50 border border-red-300 text-red-600 p-6 rounded-xl mt-6"
-      >
-        <h2 class="text-2xl font-bold mb-2">❌ Failed To Analyze</h2>
-        <p class="text-sm break-words">{{ result.error }}</p>
-      </div>
-      {% else %}
+      <!-- TAMPILKAN HASIL JIKA SUKSES -->
+      {% if result and not result.error %}
       <h2 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">
-        <span class="text-green-500"></span> Analize Results
+        <span class="text-green-500">✅</span> Analysis Results
       </h2>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Kolom 1: Informasi Dasar -->
-        <div class="md:col-span-1 flex flex-col items-center">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Kolom 1: Gambar Makanan -->
+        <div class="lg:col-span-1 flex flex-col items-center">
           <img
             src="{{ image_url }}"
             alt="{{ result.foodNameIdentified }}"
@@ -123,87 +198,216 @@
           />
           <div class="bg-gray-100 p-3 rounded-lg w-full text-center">
             <p class="text-lg font-bold text-gray-800">
-              {{ result.foodNameIdentified | default('Makanan Terdeteksi') }}
+              {{ result.foodNameIdentified | default('Detected Food') }}
             </p>
             <p class="text-sm text-gray-500 italic">
-              ({{ result.servingDetails | default('Jumlah: -') }})
+              ({{ result.servingDetails | default('Amount: -') }})
             </p>
           </div>
         </div>
 
-        <!-- Kolom 2 & 3: Analisis -->
-        <div class="md:col-span-2 space-y-6">
-          <!-- Analisis 1: Estimasi Kadaluarsa (SDG Focus) -->
+        <!-- Kolom 2 & 3: Detail Analisis -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Rute & Peta -->
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-300">
+            <h3 class="text-xl font-bold text-blue-800 mb-2 flex items-center">
+              <span class="mr-2">📍</span> Shortest Route (OSM)
+            </h3>
+            {% if result.route_data %}
+            <p>
+              <strong>Distance:</strong>
+              <span class="text-2xl font-extrabold text-blue-600"
+                >{{ result.route_data.distance }}</span
+              >
+            </p>
+            <p>
+              <strong>Estimated Time:</strong>
+              <span class="font-bold text-blue-600"
+                >{{ result.route_data.duration }}</span
+              >
+            </p>
+            <p class="text-xs mt-2 text-gray-600">
+              Route Summary: {{ result.route_data.summary }}
+            </p>
+
+            <!-- KOTAK PETA (Pastikan ID="map") -->
+            <div id="map"></div>
+            {% else %}
+            <p class="text-red-500">
+              Route not found. Please check the addresses.
+            </p>
+            {% endif %}
+          </div>
+
+          <!-- Estimasi Kadaluarsa -->
           <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-300">
             <h3
               class="text-xl font-bold text-yellow-800 mb-2 flex items-center"
             >
-              <span class="mr-2"></span> Estimated Expiration & Storage
+              <span class="mr-2">⏳</span> Estimated Expiration
             </h3>
             <p>
-              <strong>Estimated Expiration:</strong> {{
-              result.expirationAnalysis.estimatedShelfLife | default('Tidak
-              Diketahui') }}
+              <strong>Shelf Life:</strong> {{
+              result.expirationAnalysis.estimatedShelfLife | default('Unknown')
+              }}
             </p>
             <p class="text-sm mt-1">
-              <strong>Storage Recomendation:</strong> {{
-              result.expirationAnalysis.storageRecommendation | default('Tidak
-              Ada') }}
+              <strong>Storage:</strong> {{
+              result.expirationAnalysis.storageRecommendation | default('None')
+              }}
             </p>
           </div>
 
-          <!-- Analisis 2: Nilai Gizi -->
+          <!-- Nilai Gizi -->
           <div class="bg-green-50 p-4 rounded-lg border border-green-300">
             <h3 class="text-xl font-bold text-green-800 mb-2 flex items-center">
-              <span class="mr-2"></span> Nutrional Value
+              <span class="mr-2">🥕</span> Nutritional Value
             </h3>
             <div class="space-y-1 text-sm">
               {% for fact, value in result.nutritionFacts.items() %}
               <div class="flex justify-between border-b border-green-200 pb-1">
-                <span class="font-medium text-gray-700">{{ fact }}</span>
-                <span class="font-semibold text-gray-900">{{ value }}</span>
+                <span class="font-medium text-gray-700">{{ fact }}</span
+                ><span class="font-semibold text-gray-900">{{ value }}</span>
               </div>
               {% endfor %}
             </div>
           </div>
 
-          <!-- Analisis 3: Potensi Alergen -->
+          <!-- Potensi Alergen -->
           <div class="bg-red-50 p-4 rounded-lg border border-red-300">
             <h3 class="text-xl font-bold text-red-800 mb-2 flex items-center">
-              <span class="mr-2"></span> Alergy Potential
+              <span class="mr-2">🚨</span> Allergy Potential
             </h3>
             <ul class="list-disc list-inside text-sm text-red-700 font-medium">
-              {% if result.potentialAllergens and result.potentialAllergens |
-              length > 0 %} {% for allergen in result.potentialAllergens %}
+              {% if result.potentialAllergens %} {% for allergen in
+              result.potentialAllergens %}
               <li>{{ allergen }}</li>
               {% endfor %} {% else %}
-              <li>Tidak ada alergen mayor yang teridentifikasi.</li>
+              <li>No major allergens identified.</li>
               {% endif %}
             </ul>
           </div>
         </div>
       </div>
+      {% endif %}
 
-      {% endif %} {% endif %}
+      <!-- Pesan Error Rute (Jika ada) -->
+      {% if result and result.route_error %}
+      <div
+        class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mt-6"
+        role="alert"
+      >
+        <strong class="font-bold">⚠️ Route Error:</strong>
+        <span class="block sm:inline break-words"
+          >{{ result.route_error }}</span
+        >
+      </div>
+      {% endif %}
     </div>
 
+    <!-- LEAFLET JS -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      crossorigin=""
+    ></script>
+
+    <!-- ✅ SAFE DATA TRANSFER: Simpan data di sini dulu, bukan di dalam JS -->
+    {% if result and result.route_data %}
+    <script id="route-data-json" type="application/json">
+      {{ result.route_data | tojson | safe }}
+    </script>
+    {% endif %}
+
     <script>
-      document
-        .getElementById("fileInput")
-        .addEventListener("change", function (e) {
+      // 1. Preview Gambar
+      const fileInput = document.getElementById("fileInput");
+      if (fileInput) {
+        fileInput.addEventListener("change", function (e) {
           const fileNameSpan = document.getElementById("fileName");
           if (e.target.files.length > 0) {
             fileNameSpan.textContent = e.target.files[0].name;
-            // Mengubah path untuk ditampilkan di img tag secara temporer
-            const imageUrl = URL.createObjectURL(e.target.files[0]);
-            const imgElement = document.querySelector(".card img");
-            if (imgElement) {
-              imgElement.src = imageUrl;
-            }
           } else {
-            fileNameSpan.textContent = "Tidak ada file dipilih";
+            fileNameSpan.textContent = "No Photo Attached";
           }
         });
+      }
+
+      // 2. Render Peta (Logic Aman)
+      document.addEventListener("DOMContentLoaded", function () {
+        const dataElement = document.getElementById("route-data-json");
+
+        if (dataElement) {
+          try {
+            const routeData = JSON.parse(dataElement.textContent);
+            console.log("Memuat Peta dengan data:", routeData);
+
+            if (routeData && routeData.start_coords && routeData.end_coords) {
+              // Koordinat dari Python (Lat, Lon)
+              var start = [
+                parseFloat(routeData.start_coords[0]),
+                parseFloat(routeData.start_coords[1]),
+              ];
+              var end = [
+                parseFloat(routeData.end_coords[0]),
+                parseFloat(routeData.end_coords[1]),
+              ];
+
+              // Inisialisasi Peta
+              var map = L.map("map").setView(start, 13);
+
+              L.tileLayer(
+                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+                  maxZoom: 19,
+                  attribution: "© OpenStreetMap",
+                }
+              ).addTo(map);
+
+              // Marker Fix
+              var DefaultIcon = L.icon({
+                iconUrl:
+                  "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+                shadowUrl:
+                  "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41],
+              });
+              L.Marker.prototype.options.icon = DefaultIcon;
+
+              L.marker(start)
+                .addTo(map)
+                .bindPopup("<b>Asal</b><br>Lokasi Donatur")
+                .openPopup();
+              L.marker(end)
+                .addTo(map)
+                .bindPopup("<b>Tujuan</b><br>Lokasi Penerima");
+
+              // Gambar Garis Biru
+              if (routeData.geometry) {
+                var routeLayer = L.geoJSON(routeData.geometry, {
+                  style: { color: "blue", weight: 5, opacity: 0.7 },
+                }).addTo(map);
+
+                // Pastikan peta me-refresh ukurannya agar tidak abu-abu
+                setTimeout(function () {
+                  map.invalidateSize();
+                  map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+                }, 200);
+              } else {
+                var bounds = L.latLngBounds([start, end]);
+                setTimeout(function () {
+                  map.invalidateSize();
+                  map.fitBounds(bounds, { padding: [50, 50] });
+                }, 200);
+              }
+            }
+          } catch (e) {
+            console.error("Gagal memproses data peta:", e);
+          }
+        }
+      });
     </script>
   </body>
 </html>
